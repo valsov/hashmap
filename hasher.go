@@ -11,9 +11,7 @@ var rapidSecret = [3]uint64{0x2d358dccaa6c78a5, 0x8bb84b93962eacc9, 0x4b33a62ed4
 
 func Hash(p unsafe.Pointer, length int) uint64 {
 	// Get key bytes
-	dataSlice := unsafe.Slice(&p, length)
-	key := *(*[]byte)(unsafe.Pointer(&dataSlice))
-
+	key := unsafe.Slice((*byte)(p), length)
 	// Hash key
 	return rapidhashInternal(key, length, RAPID_SEED, rapidSecret)
 }
