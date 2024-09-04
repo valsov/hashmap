@@ -8,9 +8,9 @@ var rapidSecret = [3]uint64{0x2d358dccaa6c78a5, 0x8bb84b93962eacc9, 0x4b33a62ed4
 
 // Produce a 64bit hash from the given byte slice.
 //
-// This is an implementation of the [Rapidash algorithm].
+// This is an implementation of the [Rapidhash algorithm].
 //
-// [Rapidash algorithm]: https://github.com/Nicoshev/rapidhash
+// [Rapidhash algorithm]: https://github.com/Nicoshev/rapidhash
 func Hash(key []byte) uint64 {
 	return rapidhashInternal(key, len(key), rapidSeed, rapidSecret)
 }
