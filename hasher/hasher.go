@@ -1,19 +1,18 @@
-package hashmap
+package hasher
 
-import (
-	"encoding/binary"
-	"unsafe"
-)
+import "encoding/binary"
 
-const RAPID_SEED = 0xbdd89aa982704029
+const rapidSeed = 0xbdd89aa982704029
 
 var rapidSecret = [3]uint64{0x2d358dccaa6c78a5, 0x8bb84b93962eacc9, 0x4b33a62ed433d4a3}
 
-func Hash(p unsafe.Pointer, length int) uint64 {
-	// Get key bytes
-	key := unsafe.Slice((*byte)(p), length)
-	// Hash key
-	return rapidhashInternal(key, length, RAPID_SEED, rapidSecret)
+// Produce a 64bit hash from the given byte slice.
+//
+// This is an implementation of the [Rapidash algorithm].
+//
+// [Rapidash algorithm]: https://github.com/Nicoshev/rapidhash
+func Hash(key []byte) uint64 {
+	return rapidhashInternal(key, len(key), rapidSeed, rapidSecret)
 }
 
 func rapidhashInternal(key []byte, length int, seed uint64, secret [3]uint64) uint64 {
