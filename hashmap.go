@@ -26,6 +26,7 @@ type Hashmap[TKey comparable, TValue any] struct {
 	storage    []mapEntry[TKey, TValue]
 	length     int     // Number of entries in the hashmap
 	loadFactor float32 // Load at which a storage growth will take place
+	maxProbe   int     // The maximum number of slots a key search should check, this is the max distance an entry was palced from its ideal index
 	hashFunc   func(TKey) uint64
 }
 
@@ -94,6 +95,8 @@ func (m *Hashmap[TKey, TValue]) Set(key TKey, value TValue) {
 			m.storage[index].key = key
 			m.storage[index].value = value
 			m.storage[index].alive = true
+
+			m.maxProbe = max(m.maxProbe, distance)
 			return
 		}
 
@@ -103,6 +106,8 @@ func (m *Hashmap[TKey, TValue]) Set(key TKey, value TValue) {
 			// Insert data in this slot and continue to find a new spot for the previous data
 			m.storage[index].key, key = key, m.storage[index].key
 			m.storage[index].value, value = value, m.storage[index].value
+
+			m.maxProbe = max(m.maxProbe, distance)
 			distance = curSlotDistance
 		}
 		distance++
@@ -150,6 +155,7 @@ func (m *Hashmap[TKey, TValue]) Delete(key TKey) {
 func (m *Hashmap[TKey, TValue]) Clear() {
 	m.storage = make([]mapEntry[TKey, TValue], len(m.storage))
 	m.length = 0
+	m.maxProbe = 0
 }
 
 // Get the number of entries stored in the hashmap.
@@ -176,7 +182,8 @@ func (m *Hashmap[TKey, TValue]) GetEntries() []KeyValue[TKey, TValue] {
 // Main lookup function, try to find the index of the given key.
 func (m *Hashmap[TKey, TValue]) tryGetKeyIndex(key TKey) (int, bool) {
 	index := m.getIdealKeyIndex(key)
-	for {
+	// The value can only be located within a range of m.maxProbe from its ideal index
+	for range m.maxProbe + 1 {
 		if m.storage[index].key == key {
 			return index, true
 		}
@@ -187,6 +194,7 @@ func (m *Hashmap[TKey, TValue]) tryGetKeyIndex(key TKey) (int, bool) {
 
 		index = (index + 1) & (len(m.storage) - 1)
 	}
+	return 0, false
 }
 
 // Compute the index at which the given key should be located.
