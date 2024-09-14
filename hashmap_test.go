@@ -93,3 +93,7 @@ func TestLen(t *testing.T) {
 		t.Errorf("invalid length. expected=1, got=%d", len)
 	}
 }
+
+func TestGetEntries(t *testing.T) {
+	panic("todo")
+}
