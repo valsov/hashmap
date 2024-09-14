@@ -19,6 +19,9 @@ type mapEntry[TKey, TValue any] struct {
 }
 
 // Hashmap struct for fast data lookup
+//
+// The capacity of the hashmap must be a power of 2. This allows to do: hash & (cap - 1) to compute indexes.
+// This way, the use of modulo operator is avoided (much slower operation).
 type Hashmap[TKey comparable, TValue any] struct {
 	storage    []mapEntry[TKey, TValue]
 	length     int     // Number of entries in the hashmap
@@ -26,18 +29,22 @@ type Hashmap[TKey comparable, TValue any] struct {
 	hashFunc   func(TKey) uint64
 }
 
+// Instanciate a new hashmap with a primitive key type.
 func NewPrimitiveKeyMap[TKey types.Primitive, TValue any]() *Hashmap[TKey, TValue] {
 	return NewMap[TKey, TValue](types.PrimitiveTypeBytesReader[TKey])
 }
 
+// Instanciate a new hashmap with a string key type.
 func NewStringKeyMap[TValue any]() *Hashmap[string, TValue] {
 	return NewMap[string, TValue](types.StringBytesReader)
 }
 
+// Instanciate a new hashmap with a pointer key type.
 func NewPointerKeyMap[TKey *TKeyVal, TValue any, TKeyVal any]() *Hashmap[TKey, TValue] {
 	return NewMap[TKey, TValue](types.PointerBytesReader[TKey])
 }
 
+// Instanciate a new hashmap with a custom key bytes reader function.
 func NewMap[TKey comparable, TValue any](keyBytesReader types.ReaderFunc[TKey]) *Hashmap[TKey, TValue] {
 	return &Hashmap[TKey, TValue]{
 		storage:    make([]mapEntry[TKey, TValue], defaultInitialCapacity),
@@ -91,7 +98,7 @@ func (m *Hashmap[TKey, TValue]) Set(key TKey, value TValue) {
 		}
 
 		curSlotIdealIndex := m.getIdealKeyIndex(m.storage[index].key)
-		curSlotDistance := (index + len(m.storage) - curSlotIdealIndex) % len(m.storage)
+		curSlotDistance := (index + len(m.storage) - curSlotIdealIndex) & (len(m.storage) - 1)
 		if distance > curSlotDistance {
 			// Insert data in this slot and continue to find a new spot for the previous data
 			m.storage[index].key, key = key, m.storage[index].key
@@ -99,7 +106,7 @@ func (m *Hashmap[TKey, TValue]) Set(key TKey, value TValue) {
 			distance = curSlotDistance
 		}
 		distance++
-		index = (index + 1) % len(m.storage)
+		index = (index + 1) & (len(m.storage) - 1)
 	}
 }
 
@@ -114,7 +121,7 @@ func (m *Hashmap[TKey, TValue]) Delete(key TKey) {
 
 	// Move next entries if necessary
 	previousIndex := index
-	index = (index + 1) % len(m.storage)
+	index = (index + 1) & (len(m.storage) - 1)
 	for {
 		if !m.storage[index].alive {
 			m.emptySlot(previousIndex)
@@ -122,7 +129,7 @@ func (m *Hashmap[TKey, TValue]) Delete(key TKey) {
 		}
 
 		curSlotIdealIndex := m.getIdealKeyIndex(m.storage[index].key)
-		curSlotDistance := (index + len(m.storage) - curSlotIdealIndex) % len(m.storage)
+		curSlotDistance := (index + len(m.storage) - curSlotIdealIndex) & (len(m.storage) - 1)
 		if curSlotDistance == 0 {
 			// Ideal placement
 			m.emptySlot(previousIndex)
@@ -135,14 +142,14 @@ func (m *Hashmap[TKey, TValue]) Delete(key TKey) {
 		m.storage[previousIndex].alive = true
 
 		previousIndex = index
-		index = (index + 1) % len(m.storage)
+		index = (index + 1) & (len(m.storage) - 1)
 	}
 }
 
 // Remove all entries from the hashmap.
 func (m *Hashmap[TKey, TValue]) Clear() {
-	m.length = 0
 	m.storage = make([]mapEntry[TKey, TValue], len(m.storage))
+	m.length = 0
 }
 
 // Get the number of entries stored in the hashmap.
@@ -178,14 +185,14 @@ func (m *Hashmap[TKey, TValue]) tryGetKeyIndex(key TKey) (int, bool) {
 			return 0, false
 		}
 
-		index = (index + 1) % len(m.storage)
+		index = (index + 1) & (len(m.storage) - 1)
 	}
 }
 
 // Compute the index at which the given key should be located.
 func (m *Hashmap[TKey, TValue]) getIdealKeyIndex(key TKey) int {
 	hash := m.hashFunc(key)
-	return int(hash % uint64(len(m.storage)))
+	return int(hash & uint64(len(m.storage)-1))
 }
 
 // Set the slot's value to the default, dead slot.
