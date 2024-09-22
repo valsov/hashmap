@@ -1,8 +1,12 @@
 package hashmap
 
-import "github.com/valsov/hashmap/types"
+import (
+	"unsafe"
 
-const defaultInitialCapacity uint = 128
+	"github.com/valsov/hashmap/hasher"
+)
+
+const defaultInitialCapacity uint = 128 // Power of 2
 const defaultLoadFactor float32 = 0.5
 
 // Key value pair
@@ -21,37 +25,34 @@ type mapEntry[TKey, TValue any] struct {
 // Hashmap struct for fast data lookup
 //
 // The capacity of the hashmap must be a power of 2. This allows to do: hash & (cap - 1) to compute indexes.
-// This way, the use of modulo operator is avoided (much slower operation).
+// This way, the use of modulo operator is avoided (which is a much slower operation compared to bitwise AND).
 type Hashmap[TKey comparable, TValue any] struct {
 	storage    []mapEntry[TKey, TValue]
 	length     int     // Number of entries in the hashmap
 	loadFactor float32 // Load at which a storage growth will take place
-	maxProbe   int     // The maximum number of slots a key search should check, this is the max distance an entry was palced from its ideal index
-	hashFunc   func(TKey) uint64
-}
-
-// Instanciate a new hashmap with a primitive key type.
-func NewPrimitiveKeyMap[TKey types.Primitive, TValue any]() *Hashmap[TKey, TValue] {
-	return NewMap[TKey, TValue](types.PrimitiveTypeBytesReader[TKey])
-}
-
-// Instanciate a new hashmap with a string key type.
-func NewStringKeyMap[TValue any]() *Hashmap[string, TValue] {
-	return NewMap[string, TValue](types.StringBytesReader)
-}
-
-// Instanciate a new hashmap with a pointer key type.
-func NewPointerKeyMap[TKey *TKeyVal, TValue any, TKeyVal any]() *Hashmap[TKey, TValue] {
-	return NewMap[TKey, TValue](types.PointerBytesReader[TKey])
+	maxProbe   int     // The maximum number of slots a key search should check, this is the max distance an entry was placed from its ideal index
+	hashFunc   func(uintptr, uintptr) uintptr
+	hashSeed   uintptr
 }
 
 // Instanciate a new hashmap with a custom key bytes reader function.
-func NewMap[TKey comparable, TValue any](keyBytesReader types.ReaderFunc[TKey]) *Hashmap[TKey, TValue] {
-	return &Hashmap[TKey, TValue]{
-		storage:    make([]mapEntry[TKey, TValue], defaultInitialCapacity),
-		hashFunc:   createHashFunc(keyBytesReader),
+func New[TKey comparable, TValue any](config ...HashMapConfig[TKey, TValue]) *Hashmap[TKey, TValue] {
+	m := &Hashmap[TKey, TValue]{
 		loadFactor: defaultLoadFactor,
+		hashSeed:   hasher.GenerateSeed(),
 	}
+	for _, configFunc := range config {
+		configFunc(m)
+	}
+
+	if m.storage == nil {
+		m.storage = make([]mapEntry[TKey, TValue], defaultInitialCapacity)
+	}
+	if m.hashFunc == nil {
+		m.hashFunc = hasher.GetHashFunc[TKey]()
+	}
+
+	return m
 }
 
 // Get the value associated with the given key. A default value is returned if the key doesn't exist.
@@ -164,6 +165,8 @@ func (m *Hashmap[TKey, TValue]) Len() int {
 }
 
 // Get all entries stored in the hashmap.
+//
+// The slice ordering is not guaranteed to be the insertion order.
 func (m *Hashmap[TKey, TValue]) GetEntries() []KeyValue[TKey, TValue] {
 	entries := make([]KeyValue[TKey, TValue], m.length)
 	index := 0
@@ -199,7 +202,7 @@ func (m *Hashmap[TKey, TValue]) tryGetKeyIndex(key TKey) (int, bool) {
 
 // Compute the index at which the given key should be located.
 func (m *Hashmap[TKey, TValue]) getIdealKeyIndex(key TKey) int {
-	hash := m.hashFunc(key)
+	hash := uint64(m.hashFunc(uintptr(unsafe.Pointer(&key)), m.hashSeed))
 	return int(hash & uint64(len(m.storage)-1))
 }
 

@@ -1,6 +1,7 @@
 package hashmap
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 )
@@ -28,7 +29,7 @@ func TestGet(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		m := NewStringKeyMap[int]()
+		m := New[string, int]()
 		for _, kv := range tc.values {
 			m.Set(kv.Key, kv.Value)
 		}
@@ -66,7 +67,7 @@ func TestTryGet(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		m := NewStringKeyMap[int]()
+		m := New[string, int]()
 		for _, kv := range tc.values {
 			m.Set(kv.Key, kv.Value)
 		}
@@ -104,7 +105,7 @@ func TestSet(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		m := NewStringKeyMap[int]()
+		m := New[string, int]()
 		for _, kv := range tc.values {
 			m.Set(kv.Key, kv.Value)
 		}
@@ -146,7 +147,7 @@ func TestDelete(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		m := NewStringKeyMap[int]()
+		m := New[string, int]()
 		for _, kv := range tc.values {
 			m.Set(kv.Key, kv.Value)
 		}
@@ -176,7 +177,7 @@ func TestClear(t *testing.T) {
 		{{"key1", 123}, {"key2", 456}, {"key3", 789}},
 	}
 	for _, tc := range testCases {
-		m := NewStringKeyMap[int]()
+		m := New[string, int]()
 		for _, kv := range tc {
 			m.Set(kv.Key, kv.Value)
 		}
@@ -195,7 +196,7 @@ func TestClear(t *testing.T) {
 }
 
 func TestLen(t *testing.T) {
-	m := NewStringKeyMap[int]()
+	m := New[string, int]()
 
 	// Initial
 	len := m.Len()
@@ -253,7 +254,7 @@ func TestGetEntries(t *testing.T) {
 		{{"key1", 123}, {"key2", 456}, {"key3", 789}},
 	}
 	for _, tc := range testCases {
-		m := NewStringKeyMap[int]()
+		m := New[string, int]()
 		for _, kv := range tc {
 			m.Set(kv.Key, kv.Value)
 		}
@@ -280,4 +281,29 @@ func TestGetEntries(t *testing.T) {
 			}
 		}
 	}
+}
+
+func BenchmarkGet(b *testing.B) {
+	b.Run("Hmap", func(b *testing.B) {
+		m := New[string, int]()
+		for i := 0; i < 1000; i++ {
+			m.Set(fmt.Sprint(i), 0)
+		}
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			_ = m.Get("50")
+		}
+	})
+	b.Run("Native map", func(b *testing.B) {
+		m := map[string]int{}
+		for i := 0; i < 1000; i++ {
+			m[fmt.Sprint(i)] = 0
+		}
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			_ = m["50"]
+		}
+	})
 }
