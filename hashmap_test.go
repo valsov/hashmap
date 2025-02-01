@@ -1,7 +1,6 @@
 package hashmap
 
 import (
-	"fmt"
 	"slices"
 	"testing"
 )
@@ -281,29 +280,4 @@ func TestGetEntries(t *testing.T) {
 			}
 		}
 	}
-}
-
-func BenchmarkGet(b *testing.B) {
-	b.Run("Hmap", func(b *testing.B) {
-		m := New[string, int]()
-		for i := 0; i < 1000; i++ {
-			m.Set(fmt.Sprint(i), 0)
-		}
-		b.ResetTimer()
-
-		for i := 0; i < b.N; i++ {
-			_ = m.Get("50")
-		}
-	})
-	b.Run("Native map", func(b *testing.B) {
-		m := map[string]int{}
-		for i := 0; i < 1000; i++ {
-			m[fmt.Sprint(i)] = 0
-		}
-		b.ResetTimer()
-
-		for i := 0; i < b.N; i++ {
-			_ = m["50"]
-		}
-	})
 }
