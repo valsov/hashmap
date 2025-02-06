@@ -2,13 +2,15 @@ package hashmap
 
 import (
 	"fmt"
+	"math/rand"
+	"strconv"
 	"testing"
 )
 
-var mapSizes []int = []int{100, 1000, 10_000, 100_000, 1_000_000}
-
 func BenchmarkGet(b *testing.B) {
-	for _, entriesCount := range mapSizes {
+	for _, entriesCount := range []int{100, 1000, 10_000, 100_000, 1_000_000} {
+		key := strconv.Itoa(rand.Intn(entriesCount))
+
 		b.Run(fmt.Sprintf("size_%d", entriesCount), func(b *testing.B) {
 			b.Run("Hmap", func(b *testing.B) {
 				m := New[string, int]()
@@ -18,8 +20,8 @@ func BenchmarkGet(b *testing.B) {
 				b.ResetTimer()
 
 				for range b.N {
-					for key := 0; key < b.N; key++ {
-						_ = m.Get(fmt.Sprint(key))
+					for i := 0; i < b.N; i++ {
+						_ = m.Get(key)
 					}
 				}
 			})
@@ -31,45 +33,11 @@ func BenchmarkGet(b *testing.B) {
 				b.ResetTimer()
 
 				for range b.N {
-					for key := 0; key < b.N; key++ {
-						_ = m[fmt.Sprint(key)]
+					for i := 0; i < b.N; i++ {
+						_ = m[key]
 					}
 				}
 			})
 		})
-	}
-}
-
-func BenchmarkTryGet(b *testing.B) {
-	for _, entriesCount := range mapSizes {
-		var found bool
-		b.Run(fmt.Sprintf("size_%d", entriesCount), func(b *testing.B) {
-			b.Run("Hmap", func(b *testing.B) {
-				m := New[string, int]()
-				for i := range entriesCount {
-					m.Set(fmt.Sprint(i), 0)
-				}
-				b.ResetTimer()
-
-				for range b.N {
-					_, found = m.TryGet("50")
-				}
-			})
-			b.Run("Native map", func(b *testing.B) {
-				m := map[string]int{}
-				for i := range entriesCount {
-					m[fmt.Sprint(i)] = 0
-				}
-				b.ResetTimer()
-
-				for range b.N {
-					_, found = m["50"]
-				}
-			})
-		})
-		// Dummy code to avoid compilation warnings
-		if found {
-			found = false
-		}
 	}
 }
